@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071321">
+  <title>NOCTURNE — музыка без пауз</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --night: #071321;
+      --panel: rgba(15, 33, 51, .72);
+      --line: rgba(175, 208, 230, .12);
+      --muted: #8295a8;
+      --text: #e7f0f7;
+      --cyan: #83e4e3;
+      --blue: #6d9cff;
+      --serif: Georgia, 'Times New Roman', serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 15% 8%, rgba(23, 90, 117, .25), transparent 34rem),
+        radial-gradient(ellipse at 86% 72%, rgba(41, 64, 129, .2), transparent 32rem),
+        linear-gradient(145deg, #081726 0%, #091626 52%, #07111e 100%);
+      font-family: 'Manrope', sans-serif;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image: linear-gradient(rgba(155, 195, 220, .025) 1px, transparent 1px), linear-gradient(90deg, rgba(155, 195, 220, .025) 1px, transparent 1px);
+      background-size: 56px 56px;
+      content: '';
+      mask-image: linear-gradient(to bottom, black, transparent 78%);
+      pointer-events: none;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .app-shell {
+      width: min(1160px, calc(100% - 64px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+      animation: arrive .75s ease both;
+    }
+
+    @keyframes arrive {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .topbar, .brand, .top-meta, .section-heading, .track-row, .player-actions, .volume-control, .input-row, .queue-title, .now-playing, .transport {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar { justify-content: space-between; margin-bottom: 38px; }
+    .brand { gap: 12px; }
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border: 1px solid rgba(131, 228, 227, .34);
+      border-radius: 50%;
+      color: var(--cyan);
+      font-family: var(--serif);
+      font-size: 17px;
+    }
+    .brand-name { font-size: 13px; font-weight: 800; letter-spacing: .16em; }
+    .brand-note, .eyebrow, .top-meta, .time-readout, .queue-count, .input-label {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .brand-note { margin-top: 3px; font-size: 9px; letter-spacing: .1em; }
+    .top-meta { gap: 9px; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px rgba(131, 228, 227, .8); }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr); gap: 18px; align-items: stretch; }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .15), inset 0 1px rgba(255, 255, 255, .025);
+      backdrop-filter: blur(22px);
+    }
+
+    .player-panel { min-height: 580px; padding: 27px 30px 24px; display: flex; flex-direction: column; }
+    .section-heading { justify-content: space-between; }
+    .eyebrow { display: flex; align-items: center; gap: 9px; }
+    .eyebrow-line { width: 22px; height: 1px; background: var(--cyan); opacity: .7; }
+    .source-tag { color: #94aabd; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+
+    .visual-stage {
+      position: relative;
+      display: grid;
+      min-height: 230px;
+      flex: 1;
+      place-items: center;
+      margin: 20px 0 22px;
+      overflow: hidden;
+      border: 1px solid rgba(160, 198, 220, .08);
+      border-radius: 5px;
+      background: radial-gradient(ellipse at 50% 62%, rgba(30, 83, 108, .18), transparent 52%), rgba(5, 16, 29, .35);
+    }
+    .visual-stage::before, .visual-stage::after { position: absolute; width: 250px; height: 250px; border: 1px solid rgba(131, 228, 227, .07); border-radius: 50%; content: ''; }
+    .visual-stage::after { width: 190px; height: 190px; border-color: rgba(131, 228, 227, .1); }
+    #visualizer { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .disc {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: 114px;
+      height: 114px;
+      place-items: center;
+      border: 1px solid rgba(131, 228, 227, .22);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, rgba(44, 105, 123, .55), rgba(8, 23, 39, .72) 70%);
+      box-shadow: 0 0 55px rgba(34, 146, 164, .11), inset 0 0 28px rgba(131, 228, 227, .06);
+      transition: transform .5s ease, box-shadow .5s ease;
+    }
+    .disc::before, .disc::after { position: absolute; inset: 9px; border: 1px solid rgba(131, 228, 227, .13); border-radius: 50%; content: ''; }
+    .disc::after { inset: 19px; border-color: rgba(131, 228, 227, .1); }
+    .disc-core { width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 18px rgba(131, 228, 227, .9); }
+    .is-playing .disc { transform: scale(1.04); box-shadow: 0 0 70px rgba(34, 146, 164, .2), inset 0 0 28px rgba(131, 228, 227, .1); }
+    .stage-caption { position: absolute; bottom: 17px; color: #6f879c; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+    .now-playing { min-width: 0; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .track-copy { min-width: 0; }
+    .track-title { overflow: hidden; margin: 0; color: #edf5fa; font-size: 17px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .track-subtitle { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .track-index { flex: none; color: #6f879c; font-family: 'DM Mono', monospace; font-size: 10px; }
+
+    .seek-wrap { margin-bottom: 14px; }
+    .seek-line { position: relative; height: 3px; overflow: hidden; border-radius: 2px; background: rgba(195, 215, 230, .13); }
+    .seek-fill { width: 0; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--blue)); transition: width .3s linear; }
+    .time-row { display: flex; justify-content: space-between; margin-top: 8px; }
+    .time-readout { font-size: 9px; }
+    .transport { justify-content: center; gap: 23px; }
+    .icon-button, .play-button, .quiet-button, .primary-button, .queue-remove {
+      display: inline-grid;
+      flex: none;
+      place-items: center;
+      border: 0;
+      cursor: pointer;
+      transition: color .18s ease, background .18s ease, transform .18s ease;
+    }
+    .icon-button { width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #91a5b8; }
+    .icon-button:hover { color: var(--cyan); background: rgba(131, 228, 227, .08); }
+    .icon-button:active, .play-button:active, .primary-button:active { transform: scale(.96); }
+    .play-button { width: 48px; height: 48px; border: 1px solid rgba(131, 228, 227, .5); border-radius: 50%; background: rgba(131, 228, 227, .13); color: #c8ffff; }
+    .play-button:hover { background: rgba(131, 228, 227, .22); }
+    .play-button svg { width: 18px; height: 18px; }
+    .player-actions { justify-content: space-between; margin-top: 15px; }
+    .volume-control { gap: 9px; color: #7890a5; }
+    .volume-control input { width: 74px; height: 3px; accent-color: var(--cyan); cursor: pointer; }
+    .volume-icon { display: grid; place-items: center; }
+    .quiet-button { width: 30px; height: 30px; border-radius: 50%; background: transparent; color: #8297a9; }
+    .quiet-button:hover, .quiet-button.active { color: var(--cyan); }
+
+    .side-column { display: flex; flex-direction: column; gap: 18px; }
+    .add-panel { padding: 23px 22px 20px; }
+    .panel-title { margin: 0; color: #e1edf4; font-size: 13px; font-weight: 700; }
+    .panel-desc { margin: 6px 0 18px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .input-label { display: block; margin-bottom: 8px; font-size: 9px; }
+    .input-row { gap: 7px; }
+    .url-input { min-width: 0; width: 100%; height: 40px; padding: 0 11px; border: 1px solid rgba(171, 204, 224, .13); border-radius: 4px; outline: none; background: rgba(3, 13, 24, .38); color: var(--text); font-size: 11px; transition: border-color .2s ease; }
+    .url-input::placeholder { color: #60778b; }
+    .url-input:focus { border-color: rgba(131, 228, 227, .55); }
+    .primary-button { width: 42px; height: 40px; border-radius: 4px; background: #a1ece9; color: #09202a; }
+    .primary-button:hover { background: #c4f7f3; }
+    .queue-add-row { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .text-button { padding: 5px 0; border: 0; background: transparent; color: #91aabd; cursor: pointer; font-size: 10px; }
+    .text-button:hover { color: var(--cyan); }
+    .form-message { min-height: 15px; margin: 8px 0 0; color: #eea6a6; font-size: 10px; }
+
+    .queue-panel { min-height: 0; flex: 1; padding: 22px 22px 13px; }
+    .queue-title { justify-content: space-between; margin-bottom: 14px; }
+    .queue-count { font-size: 9px; }
+    .track-list { max-height: 264px; margin: 0; padding: 0; overflow-y: auto; list-style: none; scrollbar-color: rgba(131, 228, 227, .2) transparent; scrollbar-width: thin; }
+    .track-row { min-height: 55px; gap: 11px; border-top: 1px solid rgba(175, 208, 230, .08); }
+    .track-play { display: grid; width: 29px; height: 29px; flex: none; place-items: center; border: 1px solid rgba(175, 208, 230, .12); border-radius: 50%; background: rgba(255, 255, 255, .025); color: #9bb1c3; cursor: pointer; }
+    .track-play:hover { border-color: rgba(131, 228, 227, .4); color: var(--cyan); }
+    .track-details { min-width: 0; flex: 1; }
+    .track-name { overflow: hidden; color: #cedbe5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .track-channel { overflow: hidden; margin-top: 4px; color: #71869a; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    .queue-remove { width: 25px; height: 25px; border-radius: 50%; background: transparent; color: #60778b; font-size: 15px; }
+    .queue-remove:hover { color: #ef9a9a; }
+    .empty-queue { padding: 17px 0; color: #75899a; font-size: 10px; line-height: 1.7; }
+    .footer-note { margin-top: 15px; padding-top: 13px; border-top: 1px solid rgba(175, 208, 230, .08); color: #71869a; font-size: 9px; line-height: 1.6; }
+
+    #youtube-player { position: fixed; width: 1px; height: 1px; left: -10px; bottom: -10px; opacity: .01; pointer-events: none; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 5; max-width: min(360px, calc(100% - 40px)); padding: 12px 15px; transform: translateY(12px); border: 1px solid rgba(131, 228, 227, .23); border-radius: 5px; background: rgba(12, 31, 48, .94); color: #d4e7ef; box-shadow: 0 12px 36px rgba(0, 0, 0, .25); font-size: 11px; opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+    .toast.visible { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 760px) {
+      .app-shell { width: min(600px, calc(100% - 32px)); padding-top: 21px; }
+      .topbar { margin-bottom: 22px; }
+      .layout { grid-template-columns: 1fr; }
+      .player-panel { min-height: 500px; padding: 22px 20px 18px; }
+      .visual-stage { min-height: 205px; }
+      .side-column { display: grid; grid-template-columns: 1fr; }
+      .queue-panel { min-height: 230px; }
+      .track-list { max-height: 260px; }
+    }
+    @media (max-width: 420px) {
+      .app-shell { width: calc(100% - 24px); }
+      .top-meta { font-size: 8px; }
+      .player-panel { padding-right: 15px; padding-left: 15px; }
+      .visual-stage { min-height: 180px; margin-top: 16px; }
+      .track-title { font-size: 15px; }
+      .transport { gap: 15px; }
+      .add-panel, .queue-panel { padding-right: 16px; padding-left: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">n</div>
+        <div>
+          <div class="brand-name">NOCTURNE</div>
+          <div class="brand-note">your quiet frequency</div>
+        </div>
+      </div>
+      <div class="top-meta"><span class="status-dot"></span><span>личная радиостанция</span></div>
+    </header>
+
+    <div class="layout">
+      <section class="panel player-panel" id="player-panel" aria-label="Музыкальный плеер">
+        <div class="section-heading">
+          <div class="eyebrow"><span class="eyebrow-line"></span>СЕЙЧАС ИГРАЕТ</div>
+          <span class="source-tag">YouTube</span>
+        </div>
+
+        <div class="visual-stage" aria-label="Анимация звучания">
+          <canvas id="visualizer" aria-hidden="true"></canvas>
+          <div class="disc" aria-hidden="true"><span class="disc-core"></span></div>
+          <div class="stage-caption" id="stage-caption">ожидание сигнала</div>
+        </div>
+
+        <div class="now-playing">
+          <div class="track-copy">
+            <h1 class="track-title" id="track-title">Твоя музыка начинается здесь</h1>
+            <p class="track-subtitle" id="track-subtitle">Вставь ссылку на YouTube</p>
+          </div>
+          <span class="track-index" id="track-index">-- / --</span>
+        </div>
+
+        <div class="seek-wrap">
+          <div class="seek-line"><div class="seek-fill" id="seek-fill"></div></div>
+          <div class="time-row"><span class="time-readout" id="current-time">0:00</span><span class="time-readout" id="duration">0:00</span></div>
+        </div>
+
+        <div class="transport">
+          <button class="icon-button" id="previous-button" title="Предыдущий трек" aria-label="Предыдущий трек">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 5v14M19 6 8 12l11 6V6Z"/></svg>
+          </button>
+          <button class="play-button" id="play-button" title="Воспроизвести" aria-label="Воспроизвести">
+            <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.8c0-.8.9-1.3 1.6-.9l9.2 5.2a1 1 0 0 1 0 1.8l-9.2 5.2A1.1 1.1 0 0 1 8 16.2V5.8Z"/></svg>
+          </button>
+          <button class="icon-button" id="next-button" title="Следующий трек" aria-label="Следующий трек">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 5v14M5 6l11 6-11 6V6Z"/></svg>
+          </button>
+        </div>
+
+        <div class="player-actions">
+          <button class="quiet-button" id="shuffle-button" title="Случайный порядок" aria-label="Случайный порядок">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m16 3 4 4-4 4M4 17l4-4 4-4 4-4h4M16 21l4-4-4-4M4 7h4l2 2m4 6 2 2h4"/></svg>
+          </button>
+          <div class="volume-control">
+            <span class="volume-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10v4h3l4 3V7l-4 3H4ZM15 9a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12"/></svg></span>
+            <input id="volume" type="range" min="0" max="100" value="70" aria-label="Громкость">
+          </div>
+          <button class="quiet-button" id="repeat-button" title="Повтор трека" aria-label="Повтор трека">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <aside class="side-column">
+        <section class="panel add-panel" aria-labelledby="add-title">
+          <h2 class="panel-title" id="add-title">Добавить музыку</h2>
+          <p class="panel-desc">Вставь ссылку на видео или музыкальный клип с YouTube.</p>
+          <form id="url-form">
+            <label class="input-label" for="youtube-url">ССЫЛКА НА YOUTUBE</label>
+            <div class="input-row">
+              <input class="url-input" id="youtube-url" type="url" placeholder="youtube.com/watch?v=..." autocomplete="off" required>
+              <button class="primary-button" type="submit" title="Воспроизвести" aria-label="Воспроизвести ссылку">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M8 5.8c0-.8.9-1.3 1.6-.9l9.2 5.2a1 1 0 0 1 0 1.8l-9.2 5.2A1.1 1.1 0 0 1 8 16.2V5.8Z"/></svg>
+              </button>
+            </div>
+            <div class="queue-add-row"><button class="text-button" id="add-to-queue" type="button">＋ Добавить в очередь</button></div>
+            <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <section class="panel queue-panel" aria-labelledby="queue-heading">
+          <div class="queue-title">
+            <h2 class="panel-title" id="queue-heading">Очередь</h2>
+            <span class="queue-count" id="queue-count">0 ТРЕКОВ</span>
+          </div>
+          <ul class="track-list" id="track-list">
+            <li class="empty-queue" id="empty-queue">Добавь треки, чтобы музыка продолжалась автоматически.</li>
+          </ul>
+          <div class="footer-note">Когда трек закончится, плеер включит следующий из очереди.</div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <div id="youtube-player" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const queue = [];
+    let player;
+    let playerReady = false;
+    let currentVideoId = '';
+    let currentQueueIndex = -1;
+    let isPlaying = false;
+    let isShuffled = false;
+    let isRepeating = false;
+    let toastTimer;
+
+    const elements = {
+      form: document.getElementById('url-form'),
+      input: document.getElementById('youtube-url'),
+      message: document.getElementById('form-message'),
+      list: document.getElementById('track-list'),
+      count: document.getElementById('queue-count'),
+      title: document.getElementById('track-title'),
+      subtitle: document.getElementById('track-subtitle'),
+      index: document.getElementById('track-index'),
+      playButton: document.getElementById('play-button'),
+      playIcon: document.getElementById('play-icon'),
+      seekFill: document.getElementById('seek-fill'),
+      currentTime: document.getElementById('current-time'),
+      duration: document.getElementById('duration'),
+      panel: document.getElementById('player-panel'),
+      caption: document.getElementById('stage-caption'),
+      toast: document.getElementById('toast')
+    };
+
+    function extractVideoId(value) {
+      try {
+        const url = new URL(value.trim());
+        const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
+        if (host === 'youtu.be') return url.pathname.split('/').filter(Boolean)[0] || null;
+        if (!['youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(host)) return null;
+        const videoId = url.searchParams.get('v');
+        if (videoId) return videoId;
+        const parts = url.pathname.split('/').filter(Boolean);
+        if (['embed', 'shorts', 'live'].includes(parts[0])) return parts[1] || null;
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    function showMessage(text, isError = true) {
+      elements.message.textContent = text;
+      elements.message.style.color = isError ? '#eea6a6' : '#83e4e3';
+    }
+
+    function showToast(text) {
+      elements.toast.textContent = text;
+      elements.toast.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => elements.toast.classList.remove('visible'), 2800);
+    }
+
+    function setPlaying(playing) {
+      isPlaying = playing;
+      elements.panel.classList.toggle('is-playing', playing);
+      elements.caption.textContent = playing ? 'сигнал активен · визуализация' : 'воспроизведение на паузе';
+      elements.playButton.title = playing ? 'Пауза' : 'Воспроизвести';
+      elements.playButton.setAttribute('aria-label', playing ? 'Пауза' : 'Воспроизвести');
+      elements.playIcon.innerHTML = playing
+        ? '<path d="M7 5.5A1.5 1.5 0 0 1 8.5 4h1A1.5 1.5 0 0 1 11 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 7 18.5v-13Zm6 0A1.5 1.5 0 0 1 14.5 4h1A1.5 1.5 0 0 1 17 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-13Z"/>'
+        : '<path d="M8 5.8c0-.8.9-1.3 1.6-.9l9.2 5.2a1 1 0 0 1 0 1.8l-9.2 5.2A1.1 1.1 0 0 1 8 16.2V5.8Z"/>';
+    }
+
+    function playVideo(videoId, queueIndex = -1) {
+      currentVideoId = videoId;
+      currentQueueIndex = queueIndex;
+      elements.seekFill.style.width = '0%';
+      elements.currentTime.textContent = '0:00';
+      elements.duration.textContent = '0:00';
+      elements.title.textContent = queueIndex >= 0 ? queue[queueIndex].title : 'Загружаем трек…';
+      elements.subtitle.textContent = queueIndex >= 0 ? (queue[queueIndex].channel || 'YouTube') : 'YouTube';
+      updateTrackIndex();
+      if (!playerReady) {
+        showToast('Плеер загружается, попробуй ещё раз через секунду');
+        return;
+      }
+      player.loadVideoById(videoId);
+    }
+
+    function updateTrackIndex() {
+      if (currentQueueIndex >= 0 && queue.length) {
+        elements.index.textContent = `${String(currentQueueIndex + 1).padStart(2, '0')} / ${String(queue.length).padStart(2, '0')}`;
+      } else {
+        elements.index.textContent = queue.length ? `-- / ${String(queue.length).padStart(2, '0')}` : '-- / --';
+      }
+    }
+
+    function renderQueue() {
+      elements.list.replaceChildren();
+      elements.count.textContent = `${queue.length} ${queue.length === 1 ? 'ТРЕК' : queue.length < 5 ? 'ТРЕКА' : 'ТРЕКОВ'}`;
+      if (!queue.length) {
+        const empty = document.createElement('li');
+        empty.className = 'empty-queue';
+        empty.textContent = 'Добавь треки, чтобы музыка продолжалась автоматически.';
+        elements.list.append(empty);
+        updateTrackIndex();
+        return;
+      }
+
+      queue.forEach((track, index) => {
+        const item = document.createElement('li');
+        item.className = 'track-row';
+        const play = document.createElement('button');
+        play.className = 'track-play';
+        play.type = 'button';
+        play.title = `Включить: ${track.title}`;
+        play.setAttribute('aria-label', `Включить ${track.title}`);
+        play.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M8 5.8c0-.8.9-1.3 1.6-.9l9.2 5.2a1 1 0 0 1 0 1.8l-9.2 5.2A1.1 1.1 0 0 1 8 16.2V5.8Z"/></svg>';
+        play.addEventListener('click', () => playVideo(track.id, index));
+
+        const details = document.createElement('div');
+        details.className = 'track-details';
+        const name = document.createElement('div');
+        name.className = 'track-name';
+        name.textContent = track.title;
+        const channel = document.createElement('div');
+        channel.className = 'track-channel';
+        channel.textContent = track.channel || 'YouTube';
+        details.append(name, channel);
+
+        const remove = document.createElement('button');
+        remove.className = 'queue-remove';
+        remove.type = 'button';
+        remove.title = 'Убрать из очереди';
+        remove.setAttribute('aria-label', `Убрать ${track.title} из очереди`);
+        remove.textContent = '×';
+        remove.addEventListener('click', () => {
+          queue.splice(index, 1);
+          if (currentQueueIndex === index) currentQueueIndex = -1;
+          else if (currentQueueIndex > index) currentQueueIndex -= 1;
+          renderQueue();
+        });
+
+        item.append(play, details, remove);
+        elements.list.append(item);
+      });
+      updateTrackIndex();
+    }
+
+    function addTrack(value, playNow) {
+      const id = extractVideoId(value);
+      if (!id || !/^[\w-]{11}$/.test(id)) {
+        showMessage('Не получилось распознать ссылку YouTube.');
+        return;
+      }
+      elements.message.textContent = '';
+      const existingIndex = queue.findIndex(track => track.id === id);
+      if (!playNow && existingIndex >= 0) {
+        showMessage('Этот трек уже есть в очереди.');
+        return;
+      }
+
+      if (existingIndex < 0) {
+        queue.push({ id, title: `YouTube · ${id}`, channel: 'Добавлено по ссылке' });
+        renderQueue();
+      }
+      if (playNow) {
+        const playIndex = existingIndex >= 0 ? existingIndex : queue.length - 1;
+        playVideo(id, playIndex);
+        if (existingIndex >= 0) showMessage('Трек уже в очереди', false);
+      }
+      elements.input.value = '';
+      if (!playNow) showMessage('Добавлено в очередь', false);
+    }
+
+    function playNext() {
+      if (isRepeating && currentVideoId) {
+        player.loadVideoById(currentVideoId);
+        return;
+      }
+      if (!queue.length) {
+        setPlaying(false);
+        showToast('Очередь пуста. Добавь следующий трек.');
+        return;
+      }
+      let nextIndex;
+      if (isShuffled && queue.length > 1) {
+        const choices = queue.map((_, index) => index).filter(index => index !== currentQueueIndex);
+        nextIndex = choices[Math.floor(Math.random() * choices.length)];
+      } else {
+        nextIndex = currentQueueIndex < 0 ? 0 : (currentQueueIndex + 1) % queue.length;
+      }
+      playVideo(queue[nextIndex].id, nextIndex);
+    }
+
+    function playPrevious() {
+      if (playerReady && player.getCurrentTime() > 3) {
+        player.seekTo(0, true);
+        return;
+      }
+      if (queue.length) {
+        const previousIndex = currentQueueIndex <= 0 ? queue.length - 1 : currentQueueIndex - 1;
+        playVideo(queue[previousIndex].id, previousIndex);
+      }
+    }
+
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds)) return '0:00';
+      const minutes = Math.floor(seconds / 60);
+      const remainder = Math.floor(seconds % 60).toString().padStart(2, '0');
+      return `${minutes}:${remainder}`;
+    }
+
+    elements.form.addEventListener('submit', event => {
+      event.preventDefault();
+      addTrack(elements.input.value, true);
+    });
+    document.getElementById('add-to-queue').addEventListener('click', () => addTrack(elements.input.value, false));
+    elements.playButton.addEventListener('click', () => {
+      if (!playerReady) return showToast('Плеер загружается…');
+      if (!currentVideoId) {
+        if (queue.length) playVideo(queue[0].id, 0);
+        else elements.input.focus();
+        return;
+      }
+      isPlaying ? player.pauseVideo() : player.playVideo();
+    });
+    document.getElementById('next-button').addEventListener('click', playNext);
+    document.getElementById('previous-button').addEventListener('click', playPrevious);
+    document.getElementById('volume').addEventListener('input', event => {
+      if (playerReady) player.setVolume(Number(event.target.value));
+    });
+    document.getElementById('shuffle-button').addEventListener('click', event => {
+      isShuffled = !isShuffled;
+      event.currentTarget.classList.toggle('active', isShuffled);
+      showToast(isShuffled ? 'Случайный порядок включён' : 'Обычный порядок включён');
+    });
+    document.getElementById('repeat-button').addEventListener('click', event => {
+      isRepeating = !isRepeating;
+      event.currentTarget.classList.toggle('active', isRepeating);
+      showToast(isRepeating ? 'Повтор трека включён' : 'Повтор трека выключен');
+    });
+
+    window.onYouTubeIframeAPIReady = function () {
+      player = new YT.Player('youtube-player', {
+        width: '1',
+        height: '1',
+        videoId: '',
+        playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 1 },
+        events: {
+          onReady: event => {
+            playerReady = true;
+            event.target.setVolume(70);
+            if (currentVideoId) player.loadVideoById(currentVideoId);
+          },
+          onStateChange: event => {
+            if (event.data === YT.PlayerState.PLAYING) {
+              setPlaying(true);
+              const data = player.getVideoData();
+              if (data.title) elements.title.textContent = data.title;
+              if (data.author) elements.subtitle.textContent = data.author;
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+              setPlaying(false);
+              if (event.data === YT.PlayerState.ENDED) playNext();
+            } else if (event.data === YT.PlayerState.BUFFERING) {
+              elements.caption.textContent = 'настройка сигнала…';
+            }
+          },
+          onError: () => {
+            setPlaying(false);
+            showToast('Это видео недоступно для встраивания на YouTube.');
+          }
+        }
+      });
+    };
+
+    const apiScript = document.createElement('script');
+    apiScript.src = 'https://www.youtube.com/iframe_api';
+    document.head.append(apiScript);
+
+    setInterval(() => {
+      if (!playerReady || !currentVideoId || !isPlaying) return;
+      const current = player.getCurrentTime();
+      const total = player.getDuration();
+      elements.currentTime.textContent = formatTime(current);
+      elements.duration.textContent = formatTime(total);
+      elements.seekFill.style.width = total ? `${Math.min(100, current / total * 100)}%` : '0%';
+    }, 500);
+
+    const canvas = document.getElementById('visualizer');
+    const context = canvas.getContext('2d');
+    let animationFrame = 0;
+
+    function drawVisualizer() {
+      const bounds = canvas.getBoundingClientRect();
+      const pixelRatio = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.floor(bounds.width * pixelRatio));
+      const height = Math.max(1, Math.floor(bounds.height * pixelRatio));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      context.clearRect(0, 0, width, height);
+      const barCount = Math.max(32, Math.floor(bounds.width / 7));
+      const centerY = height * .52;
+      const gap = width / barCount;
+      const time = performance.now() / 1000;
+      for (let index = 0; index < barCount; index += 1) {
+        const wave = Math.sin(index * .19 + time * 1.3) * .5 + Math.sin(index * .075 - time * .8) * .5;
+        const pulse = isPlaying ? .18 + Math.abs(wave) * .82 : .045 + Math.abs(wave) * .08;
+        const barHeight = Math.max(2, pulse * height * .29);
+        const x = index * gap + gap * .34;
+        const tint = context.createLinearGradient(0, centerY - barHeight, 0, centerY + barHeight);
+        tint.addColorStop(0, 'rgba(109, 156, 255, 0)');
+        tint.addColorStop(.5, isPlaying ? 'rgba(131, 228, 227, .58)' : 'rgba(131, 228, 227, .16)');
+        tint.addColorStop(1, 'rgba(109, 156, 255, 0)');
+        context.fillStyle = tint;
+        context.fillRect(x, centerY - barHeight, Math.max(1, gap * .27), barHeight * 2);
+      }
+      animationFrame = requestAnimationFrame(drawVisualizer);
+    }
+    drawVisualizer();
+  </script>
+</body>
+</html>

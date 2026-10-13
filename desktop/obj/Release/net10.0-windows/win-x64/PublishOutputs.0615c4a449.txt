@@ -1,0 +1,6 @@
+/tmp/nocturne-publish/Nocturne.pdb
+/tmp/nocturne-publish/index.html
+/tmp/nocturne-publish/Microsoft.Web.WebView2.Core.xml
+/tmp/nocturne-publish/Microsoft.Web.WebView2.WinForms.xml
+/tmp/nocturne-publish/Microsoft.Web.WebView2.Wpf.xml
+/tmp/nocturne-publish/Nocturne.exe

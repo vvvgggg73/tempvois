@@ -1,0 +1,6 @@
+/tmp/nocturne-compressed/Nocturne.pdb
+/tmp/nocturne-compressed/index.html
+/tmp/nocturne-compressed/Microsoft.Web.WebView2.Core.xml
+/tmp/nocturne-compressed/Microsoft.Web.WebView2.WinForms.xml
+/tmp/nocturne-compressed/Microsoft.Web.WebView2.Wpf.xml
+/tmp/nocturne-compressed/Nocturne.exe
